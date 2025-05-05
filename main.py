@@ -10,35 +10,34 @@ plt.rcParams['font.family'] = 'SimHei'
 plt.rcParams['axes.unicode_minus'] = False
 
 # ===== 参数 =====
-INPUT_FILE = r"C:\Users\JTHou\Desktop\City-transaction.xlsx"
-OUTPUT_FILE = r"C:\Users\JTHou\Desktop\output.xlsx"
-SHEET_NAME = 'shanghai'
+SHEET_ID = "1_2_JhjiLFhHPekEmpHQTuWxW6Tre77cq"
+SHEET_GID = "1"  # 默认是第一个工作表
+SHEET_NAME = 'shanghai'  # 你原来代码里设的，备用
 START_DATE = "2020-01-01"
 END_DATE = "2025-03-31"
 MAX_MOM_DIFF = 0.2
 
-# ===== 数据加载与清洗 =====
+# 构造可读取的 CSV 链接
+CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={SHEET_GID}"
 
+# ===== 数据加载与清洗 =====
 @st.cache_data
 def load_raw_data():
-    df = pd.read_excel(INPUT_FILE, sheet_name=SHEET_NAME)
+    df = pd.read_csv(CSV_URL)
     df.columns = df.columns.str.strip()
 
-    # 3. 时间范围
+    # 后续清洗照旧...
     df["成交时间"] = pd.to_datetime(df["成交时间"])
     df = df.query("@START_DATE <= 成交时间 <= @END_DATE")
 
-    # 2. 折价率过滤
     df["折价率"] = df["成交价"] / df["挂牌价"]
     df = df[(df["折价率"].between(0.5, 1.5)) | (df["折价率"].isna())]
 
-    # 4. 衍生字段
     df["户型"] = df["房型"].str[:2]
     df["成交年"] = df["成交时间"].dt.year
     df["成交季"] = df["成交时间"].dt.quarter
     df["year_quarter"] = df["成交年"].astype(str) + '-' + df["成交季"].astype(str)
 
-    # 1. 房龄段
     df["建成年代"] = df["建成年代"].astype(str).str.extract(r'(\d{4})')[0]
     df["建成年代"] = pd.to_datetime(df["建成年代"], format="%Y", errors="coerce")
     current_year = pd.Timestamp.now().year
@@ -228,13 +227,4 @@ if st.button("开始分析"):
     ax2.grid(True)
     st.pyplot(fig2)
 
-    # ===== 导出按钮 =====
 
-    if st.button("📤 导出结果 Excel"):
-        pd.DataFrame({
-            "季度": quarters[1:],
-            "加权环比": mom_ratios,
-            "价格指数": index_vals[1:],
-            "环比下跌占比": decline_vals
-        }).to_excel(OUTPUT_FILE, index=False)
-        st.success(f"分析结果已保存到：{OUTPUT_FILE}")
