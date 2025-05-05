@@ -6,7 +6,7 @@ import os
 
 # 配置
 st.set_page_config(page_title="房价指数分析工具", layout="wide")
-plt.rcParams['font.family'] = 'SimHei'
+plt.rcParams['font.family'] = 'DejaVu Sans'
 plt.rcParams['axes.unicode_minus'] = False
 
 # ===== 参数 =====
