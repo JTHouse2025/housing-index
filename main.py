@@ -17,13 +17,12 @@ START_DATE = "2020-01-01"
 END_DATE = "2025-03-31"
 MAX_MOM_DIFF = 0.2
 
-# 构造可读取的 CSV 链接
-CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={SHEET_GID}"
+EXCEL_URL = "https://www.dropbox.com/scl/fi/0wuanen2lao6otdk7824b/City-transaction.xlsx?rlkey=efnyazyj7dejx496a3toscho5&dl=1"
 
 # ===== 数据加载与清洗 =====
 @st.cache_data
 def load_raw_data():
-    df = pd.read_csv(CSV_URL)
+    df = pd.read_excel(EXCEL_URL, sheet_name='shanghai', engine='openpyxl')
     df.columns = df.columns.str.strip()
 
     # 后续清洗照旧...
