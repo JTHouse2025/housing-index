@@ -5,31 +5,37 @@ import matplotlib.font_manager as fm
 import streamlit as st
 import os
 
-# 配置
+# ===== 配置 =====
 st.set_page_config(page_title="房价指数分析工具", layout="wide")
 
+# 加载中文字体（SimHei）
 font_path = os.path.join(os.path.dirname(__file__), 'SimHei.ttf')
 fm.fontManager.addfont(font_path)
 plt.rcParams['font.family'] = 'SimHei'
 plt.rcParams['axes.unicode_minus'] = False
 
-# ===== 参数 =====
-SHEET_ID = "1_2_JhjiLFhHPekEmpHQTuWxW6Tre77cq"
-SHEET_GID = "1"  # 默认是第一个工作表
-SHEET_NAME = 'shanghai'  # 你原来代码里设的，备用
+# ===== 参数设置 =====
+EXCEL_URL = "https://www.dropbox.com/scl/fi/0wuanen2lao6otdk7824b/City-transaction.xlsx?rlkey=efnyazyj7dejx496a3toscho5&dl=1"
 START_DATE = "2020-01-01"
 END_DATE = "2025-03-31"
 MAX_MOM_DIFF = 0.2
 
-EXCEL_URL = "https://www.dropbox.com/scl/fi/0wuanen2lao6otdk7824b/City-transaction.xlsx?rlkey=efnyazyj7dejx496a3toscho5&dl=1"
+# ===== 工具函数：城市列表（sheet名） =====
+@st.cache_data
+def get_city_list():
+    excel_file = pd.ExcelFile(EXCEL_URL, engine='openpyxl')
+    return excel_file.sheet_names
+
+# ===== 选择城市（sheet） =====
+city_list = get_city_list()
+selected_city = st.sidebar.selectbox("选择城市（工作表）", city_list, index=city_list.index('shanghai') if 'shanghai' in city_list else 0)
 
 # ===== 数据加载与清洗 =====
 @st.cache_data
-def load_raw_data():
-    df = pd.read_excel(EXCEL_URL, sheet_name='shanghai', engine='openpyxl')
+def load_raw_data(sheet_name):
+    df = pd.read_excel(EXCEL_URL, sheet_name=sheet_name, engine='openpyxl')
     df.columns = df.columns.str.strip()
 
-    # 后续清洗照旧...
     df["成交时间"] = pd.to_datetime(df["成交时间"])
     df = df.query("@START_DATE <= 成交时间 <= @END_DATE")
 
@@ -58,15 +64,13 @@ def get_field_values(df, fields):
         result[field] = sorted(df[field].dropna().astype(str).unique().tolist())
     return result
 
-# ===== 加载数据并提取字段选项 =====
-
-df_raw = load_raw_data()
+# ===== 数据加载 =====
+df_raw = load_raw_data(selected_city)
 group_fields = ['区县', '环线', '板块', '房龄段']
 field_values = get_field_values(df_raw, group_fields)
 
-# ===== 前端字段选择区域 =====
-
-st.title("🏠 上海房价指数分析工具")
+# ===== 页面布局 =====
+st.title("🏠 房价指数分析工具")
 st.sidebar.header("字段筛选")
 
 selected_fields = st.sidebar.multiselect("选择分组字段", group_fields, default=['环线'])
@@ -82,8 +86,7 @@ if st.sidebar.button("🔄 重置分析"):
     st.session_state.clear()
     st.experimental_rerun()
 
-# ===== 分析按钮入口 =====
-
+# ===== 分析流程入口 =====
 if st.button("开始分析"):
     df = df_raw.copy()
     for field, selected_values in filters.items():
@@ -94,8 +97,6 @@ if st.button("开始分析"):
         st.stop()
 
     st.success(f"已选样本量：{len(df)} 条")
-
-    # ===== 分析函数区域 =====
 
     def aggregate_by_quarter(data, group_cols):
         df_agg = data.groupby(group_cols + ['小区', '户型', 'year_quarter'], observed=False).agg(
@@ -179,8 +180,6 @@ if st.button("开始分析"):
                 ratios.append(np.nan)
         return ratios
 
-    # ===== 分析流程 =====
-
     df_agg = aggregate_by_quarter(df, selected_fields)
     df_filtered = filter_small_groups(df_agg)
     df_pivot, quarters = pivot_and_calc_ratios(df_filtered, selected_fields)
@@ -188,7 +187,6 @@ if st.button("开始分析"):
     mom_ratios, index_vals = calc_weighted_price_index(df_ratio, quarters)
     decline_vals = calc_decline_ratios(df_ratio, quarters)
 
-    # 分组分析
     group_results = {}
     group_values = df[selected_fields].dropna().drop_duplicates()
     for _, row in group_values.iterrows():
@@ -204,7 +202,6 @@ if st.button("开始分析"):
         group_results[label] = (sub_index, sub_decline)
 
     # ===== 图表展示 =====
-
     st.subheader("📈 图表结果")
     quarters_label = [f"{q.split('-')[0]}Q{q.split('-')[1]}" for q in quarters[1:]]
 
@@ -229,5 +226,3 @@ if st.button("开始分析"):
     ax2.legend()
     ax2.grid(True)
     st.pyplot(fig2)
-
-
