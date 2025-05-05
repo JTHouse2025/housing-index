@@ -1,12 +1,16 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
 import streamlit as st
 import os
 
 # 配置
 st.set_page_config(page_title="房价指数分析工具", layout="wide")
-plt.rcParams['font.family'] = 'DejaVu Sans'
+
+font_path = os.path.join(os.path.dirname(__file__), 'SimHei.ttf')
+fm.fontManager.addfont(font_path)
+plt.rcParams['font.family'] = 'SimHei'
 plt.rcParams['axes.unicode_minus'] = False
 
 # ===== 参数 =====
